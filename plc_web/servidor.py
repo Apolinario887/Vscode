@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pycomm3 import LogixDriver
+from fastapi.responses import FileResponse
+from pathlib import Path
 
 app = FastAPI()
 
@@ -14,6 +16,10 @@ app.add_middleware(
 )
 
 CLP_PATH = '192.168.23.143/1/3' # Lembre-se de colocar o seu IP e Slot corretos
+
+@app.get("/")
+def pagina_inicial():
+    return FileResponse(Path(__file__).with_name("index.html"))
 
 class ComandoBomba(BaseModel):
     ligar: bool

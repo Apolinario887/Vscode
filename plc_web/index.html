@@ -47,7 +47,7 @@
 
         async function atualizarDados() {
             try {
-                const resposta = await fetch("http://localhost:8000/api/dados");
+                const resposta = await fetch("/api/dados");
                 const dados = await resposta.json();
 
                 if (dados.sucesso) {
@@ -84,7 +84,7 @@
             
             if (usuarioConfirmou) {
                 try {
-                    await fetch("http://localhost:8000/api/bomba", {
+                    await fetch("/api/bomba", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ ligar: !bombaLigada })
@@ -107,7 +107,7 @@
             }
 
             try {
-                const resposta = await fetch("http://localhost:8000/api/setpoint", {
+                const resposta = await fetch("/api/setpoint", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ valor: valorReal })

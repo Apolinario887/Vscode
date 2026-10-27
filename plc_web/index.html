@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisório Web - PLC</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f9;}
+        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); display: inline-block; width: 350px;}
+        h1 { color: #333; font-size: 1.5em; }
+        .valor { font-size: 2.5em; font-weight: bold; color: #0056b3; margin: 10px 0;}
+        button { padding: 12px 20px; font-size: 1em; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; margin-top: 10px; width: 100%;}
+        .btn-ligar { background-color: #28a745; color: white; }
+        .btn-desligar { background-color: #dc3545; color: white; }
+        .btn-acao { background-color: #0056b3; color: white; }
+        .secao { margin-top: 25px; padding-top: 15px; border-top: 1px solid #eee; }
+        input[type="number"] { padding: 10px; font-size: 1em; width: calc(100% - 24px); border: 1px solid #ccc; border-radius: 5px; margin-bottom: 10px;}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Painel do PLC</h1>
+        
+        <!-- Leitura do Tanque -->
+        <div>
+            <p style="margin-bottom: 0;">Nível do Tanque:</p>
+            <div class="valor"><span id="nivel">--</span> L</div>
+            <small style="color: #666;">Setpoint Atual: <span id="setpoint-atual">--</span> L</small>
+        </div>
+
+        <!-- Escrita de Setpoint -->
+        <div class="secao">
+            <p style="margin-bottom: 10px; text-align: left; font-weight: bold;">Ajustar Setpoint:</p>
+            <input type="number" id="input-setpoint" step="0.1" placeholder="Ex: 150.0">
+            <button class="btn-acao" onclick="enviarSetpoint()">Confirmar Setpoint</button>
+        </div>
+        
+        <!-- Controle da Bomba -->
+        <div class="secao">
+            <p>Status da Bomba: <strong id="status-bomba">A verificar...</strong></p>
+            <button id="btn-bomba" class="btn-ligar" onclick="alternarBomba()">Aguarde...</button>
+        </div>
+    </div>
+
+    <script>
+        let bombaLigada = false;
+
+        async function atualizarDados() {
+            try {
+                const resposta = await fetch("http://localhost:8000/api/dados");
+                const dados = await resposta.json();
+
+                if (dados.sucesso) {
+                    document.getElementById("nivel").innerText = dados.nivel_tanque;
+                    document.getElementById("setpoint-atual").innerText = dados.setpoint_atual;
+                    
+                    bombaLigada = dados.bomba_ligada;
+                    const btn = document.getElementById("btn-bomba");
+                    const status = document.getElementById("status-bomba");
+
+                    if (bombaLigada) {
+                        status.innerText = "LIGADA";
+                        status.style.color = "green";
+                        btn.innerText = "Desligar Bomba";
+                        btn.className = "btn-desligar";
+                    } else {
+                        status.innerText = "DESLIGADA";
+                        status.style.color = "red";
+                        btn.innerText = "Ligar Bomba";
+                        btn.className = "btn-ligar";
+                    }
+                }
+            } catch (erro) {
+                console.error("Erro ao comunicar com a API:", erro);
+            }
+        }
+
+        // Função de confirmação antes de ligar/desligar
+        async function alternarBomba() {
+            const acao = bombaLigada ? "DESLIGAR" : "LIGAR";
+            
+            // Exibe a janela nativa de confirmação do navegador
+            const usuarioConfirmou = confirm(`Atenção: Tem a certeza que deseja ${acao} a bomba?`);
+            
+            if (usuarioConfirmou) {
+                try {
+                    await fetch("http://localhost:8000/api/bomba", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ ligar: !bombaLigada })
+                    });
+                    atualizarDados();
+                } catch (erro) {
+                    console.error("Erro ao enviar comando:", erro);
+                }
+            }
+        }
+
+        // Função para ler o campo e enviar o novo valor
+        async function enviarSetpoint() {
+            const valorInput = document.getElementById("input-setpoint").value;
+            const valorReal = parseFloat(valorInput);
+
+            if (isNaN(valorReal)) {
+                alert("Por favor, introduza um número válido.");
+                return;
+            }
+
+            try {
+                const resposta = await fetch("http://localhost:8000/api/setpoint", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ valor: valorReal })
+                });
+                
+                const resultado = await resposta.json();
+                
+                if (resultado.sucesso) {
+                    alert(`Setpoint de ${valorReal}L enviado com sucesso!`);
+                    document.getElementById("input-setpoint").value = ""; // Limpa o campo
+                    atualizarDados(); // Atualiza a tela imediatamente
+                } else {
+                    alert("Erro ao gravar no CLP.");
+                }
+            } catch (erro) {
+                console.error("Erro ao enviar setpoint:", erro);
+                alert("Falha na comunicação com o servidor.");
+            }
+        }
+
+        setInterval(atualizarDados, 1000);
+        atualizarDados();
+    </script>
+</body>
+</html>
